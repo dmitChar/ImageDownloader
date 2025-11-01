@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>models/EDSR_x4.pb</file>
+    </qresource>
+</RCC>
