@@ -6,6 +6,7 @@
 #include <QNetworkReply>
 #include <QQueue>
 
+
 class DownloadManager : public QObject
 {
     Q_OBJECT
@@ -17,8 +18,10 @@ private:
     QQueue<QUrl> urlQueue;
     QNetworkAccessManager *manager;
 
+    void saveImage(QString path, const QImage &img);
+
 signals:
-    void downloadProgress(const QUrl &url, int a);
+    void downloadProgress(const QUrl& url, int a);
     void downloadEnd(const QUrl &url, QByteArray bytesReceived);
 private slots:
     void startDownloadNext();

@@ -3,18 +3,18 @@
 DownloadManager::DownloadManager(QObject *parent)
     : QObject{parent}
 {
+    manager = new QNetworkAccessManager;
 
 }
 
 void DownloadManager::addImgToDownload(const QUrl &url)
 {
-    if (url.isValid() && !url.isEmpty()) {
-        urlQueue.enqueue(url);
-        if (urlQueue.size() == 1)
-        {
-            startDownloadNext();
-        }
+    urlQueue.enqueue(url);
+    if (urlQueue.size() == 1)
+    {
+        startDownloadNext();
     }
+
 }
 void DownloadManager::startDownloadNext()
 {
@@ -35,13 +35,17 @@ void DownloadManager::startDownloadNext()
     });
 
     connect(rep, &QNetworkReply::finished, this, &DownloadManager::onFinished);
-    startDownloadNext();
 }
 
 void DownloadManager::onFinished()
 {
     QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
     QByteArray data = reply->readAll();
-    emit downloadEnd(reply->request().url(), data);
+    QUrl url = reply->request().url();
+    qDebug() << "Изображение скачено по ссылке" << url;
+    emit downloadEnd(url, data);
     reply->deleteLater();
+
+
+
 }

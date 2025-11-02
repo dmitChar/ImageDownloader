@@ -5,10 +5,9 @@
 using namespace cv;
 using namespace dnn_superres;
 
-ScaleImage::ScaleImage(const QUrl &url, QSize size, const QByteArray &d, QObject *parent)
+ScaleImage::ScaleImage(const QUrl &url, const QByteArray &d, QObject *parent)
     : QObject{parent},
     url(url),
-    targetSize(size),
     data(d)
 {
     setAutoDelete(true);
@@ -19,6 +18,42 @@ QString HashUrl(const QUrl &url)
 {
     QByteArray hash = QCryptographicHash::hash(url.toString().toUtf8(), QCryptographicHash::Sha1);
     return QString(hash.toHex());
+}
+
+void ScaleImage::saveImage(QString name, const QImage &img, ImgType type)
+{
+    if (name.isEmpty() || img.isNull())
+    {
+        qDebug() << "Ошибка: Пустое имя или изображение";
+        return;
+    }
+    QString basePath = QDir::currentPath();
+    QString subDir;
+    QString prefix = "";
+
+    switch (type)
+    {
+    case ImgType::Scaled:
+        prefix = "scaled_";
+        subDir = "Scaled";
+        break;
+
+    case ImgType::Source:
+        subDir = "Source";
+        break;
+    }
+
+    QDir dir(basePath);
+
+    if (!dir.exists(subDir))
+        dir.mkpath(subDir);
+
+    QString fileName = prefix + name;
+    QString fullPath = dir.filePath(subDir + "/" + fileName);
+
+    if (img.save(fullPath))
+        qDebug() << "Сохранено изображение" << fullPath;
+    else qDebug() << "Ошибка сохранения изображения" << fullPath;
 }
 
 void ScaleImage::run()
@@ -42,6 +77,12 @@ void ScaleImage::run()
     cv::cvtColor(upscaled, rgb_img, cv::COLOR_BGR2RGB);
 
     QImage result((uchar*)rgb_img.data, rgb_img.cols, rgb_img.rows, rgb_img.step, QImage::Format_RGB888);
+    qDebug() << "Изображение обработано";
+
+    saveImage(url.toString(), img, ImgType::Source);
+    saveImage(url.toString(), result, ImgType::Scaled);
+
+
 
     emit finished(this->url, result);
 }
