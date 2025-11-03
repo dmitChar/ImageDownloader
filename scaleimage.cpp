@@ -77,11 +77,12 @@ void ScaleImage::run()
         return;
     }
 
-    cv::Mat srcMat(originalImg.height(), originalImg.width(), CV_8UC4, (void*)originalImg.bits(), originalImg.bytesPerLine());
+    originalImg = originalImg.convertToFormat(QImage::Format_RGB888);
+    cv::Mat srcMat(originalImg.height(), originalImg.width(), CV_8UC3, (void*)originalImg.bits(), originalImg.bytesPerLine());
 
     cv::Mat bgrMat;
-    cv::cvtColor(srcMat, bgrMat, cv::COLOR_RGBA2BGR);
-    bgrMat.convertTo(bgrMat, CV_32F, 1.0 / 255.0);
+    cv::cvtColor(srcMat, bgrMat, cv::COLOR_RGB2BGR);
+    bgrMat.convertTo(bgrMat, CV_32F);
 
     QString tempPath = QDir::temp().filePath("EDSR_x4.pb");
     if (!QFile::exists(tempPath))
@@ -106,14 +107,12 @@ void ScaleImage::run()
     }
 
     // Upsample
-    cv::Mat upscaledMat;
+    cv::Mat upscaledFloat;
     try
     {
-        qDebug() << "Попытка апскейла изображения...";
-        cv::Mat upscaledFloat;
+        qDebug() << "Попытка upsample изображения...";
         model.upsample(bgrMat, upscaledFloat);
-        upscaledFloat.convertTo(upscaledMat, CV_8U, 255.0);
-        qDebug() << "Апскейл успешно завершен";
+        qDebug() << "Upsample успешно завершен";
     }
     catch (const cv::Exception &e)
     {
@@ -121,11 +120,15 @@ void ScaleImage::run()
         return;
     }
 
-    // Конверт в rgb
+    cv::Mat upscaledMat;
+    upscaledFloat.convertTo(upscaledMat, CV_8U);
+
+    // Конверт в RGB для QImage
     cv::Mat resultMat;
     cv::cvtColor(upscaledMat, resultMat, cv::COLOR_BGR2RGB);
 
     QImage scaledImg((const uchar*)resultMat.data, resultMat.cols, resultMat.rows, resultMat.step, QImage::Format_RGB888);
+
     if (scaledImg.isNull())
     {
         qDebug() << "Ошибка создания scaled QImage";

@@ -12,6 +12,8 @@
 #include <QMimeData>
 #include <QDropEvent>
 #include <QThreadPool>
+#include <QTableWidget>
+#include <QHeaderView>
 
 #include "downloadmanager.h"
 #include "scaleimage.h"
@@ -33,12 +35,13 @@ private:
     QLineEdit *urlInputLine;
     QPushButton *addUrlBtl;
     QPushButton *downloadBtn;
-    QListWidget *progressList;
+    QTableWidget *progressTable;
 
     //Объекты вспомогательных классов
     DownloadManager *dManager;
 
     void setUpUI();
+    void setStyles();
 
 private slots:
     void onAddUrlBtnClicked();

@@ -1,0 +1,133 @@
+/* Общие стили для окна */
+QWidget {
+    background-color: #1e1e1e;
+    color: #f0f0f0;
+    font-family: "Segoe UI", "Roboto", sans-serif;
+    font-size: 14px;
+}
+
+/* QLabel */
+QLabel {
+    color: #cfcfcf;
+    font-weight: bold;
+    padding: 3px;
+}
+
+/* QLineEdit */
+QLineEdit {
+    background-color: #2b2b2b;
+    color: #ffffff;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 6px 8px;
+}
+QLineEdit:focus {
+    border: 1px solid #00b4ff;
+    background-color: #303030;
+}
+
+/* QPushButton */
+QPushButton {
+    background-color: #2b2b2b;
+    color: #ffffff;
+    border: 1px solid #555;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-weight: 500;
+}
+QPushButton:hover {
+    background-color: #3a3a3a;
+    border: 1px solid #00b4ff;
+}
+QPushButton:pressed {
+    background-color: #0078d7;
+    border: 1px solid #0078d7;
+}
+
+/* QListWidget (список добавленных ссылок) */
+QListWidget {
+    background-color: #2b2b2b;
+    border: 1px solid #444;
+    border-radius: 6px;
+}
+QListWidget::item {
+    padding: 8px;
+    border-bottom: 1px solid #3c3c3c;
+}
+QListWidget::item:selected {
+    background-color: #0078d7;
+    color: white;
+}
+
+/* QTableWidget (таблица прогресса загрузки) */
+QTableWidget {
+    background-color: #2b2b2b;
+    gridline-color: #3c3c3c;
+    border: 1px solid #444;
+    border-radius: 6px;
+    selection-background-color: #0078d7;
+    selection-color: #ffffff;
+}
+QHeaderView::section {
+    background-color: #252525;
+    color: #f0f0f0;
+    padding: 6px;
+    border: 1px solid #3c3c3c;
+    font-weight: bold;
+}
+QTableCornerButton::section {
+    background-color: #252525;
+    border: 1px solid #3c3c3c;
+}
+
+/* QProgressBar */
+QProgressBar {
+    background-color: #2b2b2b;
+    border: 1px solid #444;
+    border-radius: 5px;
+    text-align: center;
+    color: white;
+}
+QProgressBar::chunk {
+    background-color: qlineargradient(
+        spread:pad,
+        x1:0, y1:0, x2:1, y2:0,
+        stop:0 #00b4ff, stop:1 #0078d7
+    );
+    border-radius: 4px;
+}
+
+/* Скроллбары */
+QScrollBar:vertical {
+    border: none;
+    background: #2b2b2b;
+    width: 10px;
+    margin: 0px 0px 0px 0px;
+}
+QScrollBar::handle:vertical {
+    background: #555;
+    border-radius: 5px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #777;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+/* Горизонтальный скролл */
+QScrollBar:horizontal {
+    border: none;
+    background: #2b2b2b;
+    height: 10px;
+}
+QScrollBar::handle:horizontal {
+    background: #555;
+    border-radius: 5px;
+}
+QScrollBar::handle:horizontal:hover {
+    background: #777;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0;
+}

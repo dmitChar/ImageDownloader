@@ -2,4 +2,7 @@
     <qresource prefix="/">
         <file>models/EDSR_x4.pb</file>
     </qresource>
+    <qresource prefix="/styles">
+        <file>theme1.qss</file>
+    </qresource>
 </RCC>
