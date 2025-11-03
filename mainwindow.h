@@ -45,7 +45,7 @@ private slots:
     void checkAddUrlBtn(QString text);
     void onDownloadBtnClicked();
     void onUpdateProgress(const QUrl &url, int);
-    void onDownloadFinished(const QUrl &u, QByteArray);
+    void onDownloadFinished(const QUrl &u, const QByteArray &);
 
 
 };

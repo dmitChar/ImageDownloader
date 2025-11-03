@@ -27,7 +27,11 @@ void ScaleImage::saveImage(QString name, const QImage &img, ImgType type)
         qDebug() << "Ошибка: Пустое имя или изображение";
         return;
     }
-    QString basePath = QDir::currentPath();
+
+    name = QString::number(qHash(name)) + ".jpg";
+    QString basePath = QCoreApplication::applicationDirPath() + "/../Output";
+
+
     QString subDir;
     QString prefix = "";
 
@@ -46,43 +50,91 @@ void ScaleImage::saveImage(QString name, const QImage &img, ImgType type)
     QDir dir(basePath);
 
     if (!dir.exists(subDir))
+    {
         dir.mkpath(subDir);
+        QFile::setPermissions(subDir, QFile::ReadOwner | QFile::ReadUser | QFile::ReadGroup);
+    }
 
     QString fileName = prefix + name;
     QString fullPath = dir.filePath(subDir + "/" + fileName);
 
     if (img.save(fullPath))
-        qDebug() << "Сохранено изображение" << fullPath;
+        qDebug() << "Изображение успешно сохранено" << fullPath;
     else qDebug() << "Ошибка сохранения изображения" << fullPath;
 }
 
 void ScaleImage::run()
 {
-    QImage img;
-    img.loadFromData(data);
-    if (img.isNull()) return;
+    QImage originalImg;
+    if (!originalImg.loadFromData(data))
+    {
+        qDebug() << "Ошибка загрузки данных изображения в апскейлере";
+        return;
+    }
 
-    Mat rgb_img(img.height(), img.width(), CV_8UC4, (void*)img.bits(), img.bytesPerLine());
-    cv::Mat bgr_img;
-    cv::cvtColor(rgb_img, bgr_img, cv::COLOR_RGBA2BGR);
+    if (originalImg.isNull()) {
+        qDebug() << "Изображение пустое";
+        return;
+    }
 
-    //Загружаем модель
+    cv::Mat srcMat(originalImg.height(), originalImg.width(), CV_8UC4, (void*)originalImg.bits(), originalImg.bytesPerLine());
+
+    cv::Mat bgrMat;
+    cv::cvtColor(srcMat, bgrMat, cv::COLOR_RGBA2BGR);
+    bgrMat.convertTo(bgrMat, CV_32F, 1.0 / 255.0);
+
+    QString tempPath = QDir::temp().filePath("EDSR_x4.pb");
+    if (!QFile::exists(tempPath))
+    {
+        QFile::copy(modelPath, tempPath);
+        QFile::setPermissions(tempPath, QFile::ReadOwner | QFile::ReadUser | QFile::ReadGroup);
+    }
+
+    // Попытка загрузки модели
     DnnSuperResImpl model;
-    model.readModel(":/models/EDSR_x4.pb");
-    model.setModel("edsr", 4);
+    try
+    {
+        model.readModel(tempPath.toStdString());
+        model.setModel("edsr", 4);
+        qDebug() << "Модель успешно загружена и установлена";
 
-    cv::Mat upscaled;
-    model.upsample(bgr_img, upscaled);
+    }
+    catch (const cv::Exception &e)
+    {
+        qDebug() << "Ошибка загрузки модели:" << e.what();
+        return;
+    }
 
-    cv::cvtColor(upscaled, rgb_img, cv::COLOR_BGR2RGB);
+    // Upsample
+    cv::Mat upscaledMat;
+    try
+    {
+        qDebug() << "Попытка апскейла изображения...";
+        cv::Mat upscaledFloat;
+        model.upsample(bgrMat, upscaledFloat);
+        upscaledFloat.convertTo(upscaledMat, CV_8U, 255.0);
+        qDebug() << "Апскейл успешно завершен";
+    }
+    catch (const cv::Exception &e)
+    {
+        qDebug() << "Ошибка апскейла:" << e.what();
+        return;
+    }
 
-    QImage result((uchar*)rgb_img.data, rgb_img.cols, rgb_img.rows, rgb_img.step, QImage::Format_RGB888);
-    qDebug() << "Изображение обработано";
+    // Конверт в rgb
+    cv::Mat resultMat;
+    cv::cvtColor(upscaledMat, resultMat, cv::COLOR_BGR2RGB);
 
-    saveImage(url.toString(), img, ImgType::Source);
-    saveImage(url.toString(), result, ImgType::Scaled);
+    QImage scaledImg((const uchar*)resultMat.data, resultMat.cols, resultMat.rows, resultMat.step, QImage::Format_RGB888);
+    if (scaledImg.isNull())
+    {
+        qDebug() << "Ошибка создания scaled QImage";
+        return;
+    }
+    scaledImg = scaledImg.copy();
 
+    saveImage(url.toString(), originalImg, ImgType::Source);
+    saveImage(url.toString(), scaledImg, ImgType::Scaled);
 
-
-    emit finished(this->url, result);
+    emit finished(url, scaledImg);
 }

@@ -25,6 +25,26 @@ void DownloadManager::startDownloadNext()
     QNetworkRequest req(url);
     QNetworkReply *rep = manager->get(req);
 
+    QTimer *timeoutTimer = new QTimer(rep);
+    timeoutTimer->setSingleShot(true);
+    timeoutTimer->start(15000);
+
+    //Обработка таймаута
+    connect(timeoutTimer, &QTimer::timeout, this, [this, rep, url]()
+    {
+        qDebug() << "Таймаут при загрузке";
+        rep->abort();
+        emit downloadError(url, "Timeout error");
+    });
+
+    //Обработка ошибок сети
+    connect(rep, &QNetworkReply::errorOccurred, this, [this, url, rep] ()
+    {
+        qDebug() << "Ошибка сети" << rep->errorString();
+        emit downloadError(url, rep->errorString());
+    });
+
+
     //Отслеживание прогресса загрузки
     connect(rep, &QNetworkReply::downloadProgress, this, [this, url] (qint64 bytesReceived, qint64 bytesTotal)
     {
@@ -40,12 +60,18 @@ void DownloadManager::startDownloadNext()
 void DownloadManager::onFinished()
 {
     QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
-    QByteArray data = reply->readAll();
     QUrl url = reply->request().url();
+
+    int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if (statusCode != 200)
+    {
+        qDebug() << "HTTP статус" << statusCode << "для" << url;
+        emit downloadError(url, QString("HTTP статус %1").arg(statusCode));
+        return;
+    }
+
+    QByteArray data = reply->readAll();
     qDebug() << "Изображение скачено по ссылке" << url;
     emit downloadEnd(url, data);
     reply->deleteLater();
-
-
-
 }

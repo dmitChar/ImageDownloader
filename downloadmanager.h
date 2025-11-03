@@ -5,6 +5,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QQueue>
+#include <QTimer>
 
 
 class DownloadManager : public QObject
@@ -23,6 +24,8 @@ private:
 signals:
     void downloadProgress(const QUrl& url, int a);
     void downloadEnd(const QUrl &url, QByteArray bytesReceived);
+    void downloadError(const QUrl &url, const QString &error);
+
 private slots:
     void startDownloadNext();
     void onFinished();

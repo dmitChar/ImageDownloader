@@ -37,6 +37,11 @@ void MainWindow::setUpUI()
     connect(downloadBtn, &QPushButton::clicked, this, &MainWindow::onDownloadBtnClicked);
 
     connect(dManager, &DownloadManager::downloadProgress, this, &MainWindow::onUpdateProgress);
+    connect(dManager, &DownloadManager::downloadEnd, this, &MainWindow::onDownloadFinished);
+    connect(dManager, &DownloadManager::downloadError, this, [] (const QUrl &url, const QString &error)
+    {
+        qDebug() << "Ошибка при скачивании изображения" << error << "по ссылке" << url;
+    });
 }
 
 void MainWindow::onAddUrlBtnClicked()
@@ -129,7 +134,7 @@ void MainWindow::onUpdateProgress(const QUrl &url, int percentage)
     }
 }
 
-void MainWindow::onDownloadFinished(const QUrl &url, QByteArray data)
+void MainWindow::onDownloadFinished(const QUrl &url, const QByteArray &data)
 {
     auto *scale = new ScaleImage(url, data);
     //connect(scale, &ScaleImage::finished, this, &MainWindow::);

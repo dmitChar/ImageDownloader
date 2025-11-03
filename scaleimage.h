@@ -10,6 +10,7 @@
 #include <QSize>
 #include <QBuffer>
 #include <QImage>
+#include <QImageReader>
 
 enum class ImgType
 {
@@ -30,6 +31,7 @@ signals:
 private:
     QUrl url;
     QByteArray data;
+    const QString modelPath = ":/models/EDSR_x4.pb";
 
     static void saveImage(QString name, const QImage &img, ImgType type);
 
