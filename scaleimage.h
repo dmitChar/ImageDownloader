@@ -11,6 +11,7 @@
 #include <QBuffer>
 #include <QImage>
 #include <QImageReader>
+#include <QThread>
 
 enum class ImgType
 {

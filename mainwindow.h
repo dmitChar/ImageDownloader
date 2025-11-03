@@ -14,6 +14,7 @@
 #include <QThreadPool>
 #include <QTableWidget>
 #include <QHeaderView>
+#include <QHash>
 
 #include "downloadmanager.h"
 #include "scaleimage.h"
@@ -33,22 +34,28 @@ private:
     //Виджеты
     QListWidget *urlList;
     QLineEdit *urlInputLine;
-    QPushButton *addUrlBtl;
+    QPushButton *addUrlBtn;
+    QPushButton *delUrlBtn;
     QPushButton *downloadBtn;
     QTableWidget *progressTable;
 
     //Объекты вспомогательных классов
     DownloadManager *dManager;
 
+    QHash<QUrl, int> hashUrl2Row;
+
     void setUpUI();
     void setStyles();
 
 private slots:
     void onAddUrlBtnClicked();
+    void onDelUrlBtnClicked();
+    bool isEnabledDelUrlBtn();
     void checkAddUrlBtn(QString text);
     void onDownloadBtnClicked();
     void onUpdateProgress(const QUrl &url, int);
     void onDownloadFinished(const QUrl &u, const QByteArray &);
+    void onUpsampleFinished(const QUrl &u, const QImage &img);
 
 
 };

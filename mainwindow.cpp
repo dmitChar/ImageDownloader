@@ -6,7 +6,6 @@ MainWindow::MainWindow(QWidget *parent)
     dManager = new DownloadManager;
     setUpUI();
     setStyles();
-
 }
 
 void MainWindow::setUpUI()
@@ -22,18 +21,26 @@ void MainWindow::setUpUI()
 
     //Список для отображения прогресса скачивания и состояния
     progressTable = new QTableWidget(0, 3, this);
-    progressTable->setHorizontalHeaderLabels({"Ссылка", "Процент скачивания", "Состояние"});
+    progressTable->setHorizontalHeaderLabels({"Ссылка", "Состояние скачивания", "Состояние"});
     progressTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 
     urlInputLine = new QLineEdit;
     urlInputLine->setPlaceholderText("Вставьте ссылку на изображение");
 
     auto *addUrlLayout = new QHBoxLayout;
-    addUrlBtl = new QPushButton("Добавить");
+    addUrlBtn = new QPushButton("Добавить");
+    delUrlBtn = new QPushButton("Удалить");
+    addUrlBtn->setMinimumSize(100, 35);
+    delUrlBtn->setMinimumSize(100, 35);
+    delUrlBtn->setEnabled(isEnabledDelUrlBtn());
+
     addUrlLayout->addWidget(urlInputLine);
-    addUrlLayout->addWidget(addUrlBtl);
+    addUrlLayout->addWidget(addUrlBtn);
+    addUrlLayout->addWidget(delUrlBtn);
+
 
     downloadBtn = new QPushButton("Скачать");
+
     mainLayout->addLayout(addUrlLayout);
     mainLayout->addWidget(new QLabel("Добавленные ссылки:"));
     mainLayout->addWidget(urlList);
@@ -41,15 +48,23 @@ void MainWindow::setUpUI()
     mainLayout->addWidget(progressTable);
     setCentralWidget(central);
 
-    connect(addUrlBtl, &QPushButton::clicked, this, &MainWindow::onAddUrlBtnClicked);
+    connect(addUrlBtn, &QPushButton::clicked, this, &MainWindow::onAddUrlBtnClicked);
+    connect(delUrlBtn, &QPushButton::clicked, this, &MainWindow::onDelUrlBtnClicked);
     connect(urlInputLine, &QLineEdit::textChanged, this, &MainWindow::checkAddUrlBtn);
+    connect(urlList, &QListWidget::currentItemChanged, this, [this](QListWidgetItem *current, QListWidgetItem* prev)
+    {
+        this->delUrlBtn->setEnabled(isEnabledDelUrlBtn());
+    });
+
     connect(downloadBtn, &QPushButton::clicked, this, &MainWindow::onDownloadBtnClicked);
 
     connect(dManager, &DownloadManager::downloadProgress, this, &MainWindow::onUpdateProgress);
     connect(dManager, &DownloadManager::downloadEnd, this, &MainWindow::onDownloadFinished);
-    connect(dManager, &DownloadManager::downloadError, this, [] (const QUrl &url, const QString &error)
+    connect(dManager, &DownloadManager::downloadError, this, [this] (const QUrl &url, const QString &error)
     {
         qDebug() << "Ошибка при скачивании изображения" << error << "по ссылке" << url;
+        int row = hashUrl2Row[url];
+        progressTable->setCellWidget(row, 2, new QLabel("Ошибка загрузки:" + error));
     });
 }
 
@@ -110,9 +125,27 @@ void MainWindow::onAddUrlBtnClicked()
     urlInputLine->clear();
 }
 
+void MainWindow::onDelUrlBtnClicked()
+{
+    QListWidgetItem* selectedItem = urlList->currentItem();
+
+    if (selectedItem)
+    {
+        QListWidgetItem *item = urlList->takeItem(urlList->currentRow());
+        qDebug () << "Удален элемент из очереди на скачивание" << item->data(32);
+        delete item;
+    }
+    delUrlBtn->setEnabled(isEnabledDelUrlBtn());
+}
+
 void MainWindow::checkAddUrlBtn(QString text)
 {
-    addUrlBtl->setEnabled(!text.isEmpty());
+    addUrlBtn->setEnabled(!text.isEmpty());
+}
+
+bool MainWindow::isEnabledDelUrlBtn()
+{
+    return (urlList->count() != 0 && urlList->currentItem());
 }
 
 void MainWindow::onDownloadBtnClicked()
@@ -134,13 +167,10 @@ void MainWindow::onDownloadBtnClicked()
         urlItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         progressTable->setItem(row, 0, urlItem);
 
-        //ячейка 1 - виджет для прогресса
+        //ячейка 1 - виджет для прогресс бара
         auto *widget = new QWidget;
         auto *hLayout = new QHBoxLayout(widget);
         hLayout->setContentsMargins(8, 2, 8, 2);
-
-        auto *label = new QLabel(url.toString());
-        hLayout->addWidget(label, 1);
 
         auto *newBar = new QProgressBar;
         newBar->setMaximum(100);
@@ -152,14 +182,30 @@ void MainWindow::onDownloadBtnClicked()
         newBar->setAlignment(Qt::AlignCenter);
         hLayout->addWidget(newBar);
 
-        // Хранение ссылки на бар (в item колонки 0, например)
         urlItem->setData(Qt::UserRole + 1, QVariant::fromValue(newBar));
 
-        // Устанавливаем widget в ячейку 1
+        //ячейка 2 - виджет для состояния
         progressTable->setCellWidget(row, 1, widget);
+        progressTable->setCellWidget(row, 2, new QLabel("Скачивание изображения..."));
+        hashUrl2Row[url] = row;
 
+        delete item;
+        //запуск загрузки
         dManager->addImgToDownload(url);
     }
+    downloadBtn->setEnabled(true);
+}
+
+void MainWindow::onUpsampleFinished(const QUrl &url, const QImage &img)
+{
+    if (!hashUrl2Row.contains(url))
+    {
+        qWarning() << "Не найден url в таблице:" << url;
+        return;
+    }
+    int row = hashUrl2Row[url];
+    progressTable->setCellWidget(row, 2, new QLabel("Изображение улучшено!"));
+
 }
 
 void MainWindow::onUpdateProgress(const QUrl &url, int percentage)
@@ -181,10 +227,18 @@ void MainWindow::onUpdateProgress(const QUrl &url, int percentage)
 
 void MainWindow::onDownloadFinished(const QUrl &url, const QByteArray &data)
 {
+    if (!hashUrl2Row.contains(url))
+    {
+        qWarning() << "Не найден url в таблице:" << url;
+        return;
+    }
+    int row = hashUrl2Row[url];
+    progressTable->setCellWidget(row, 2, new QLabel("Улучшение изображения..."));
     auto *scale = new ScaleImage(url, data);
-    //connect(scale, &ScaleImage::finished, this, &MainWindow::);
 
     QThreadPool::globalInstance()->start(scale);
+
+    connect(scale, &ScaleImage::finished, this, &MainWindow::onUpsampleFinished);
 }
 
 void MainWindow::dropEvent(QDropEvent *event)

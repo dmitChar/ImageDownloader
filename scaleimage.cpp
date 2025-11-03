@@ -110,7 +110,7 @@ void ScaleImage::run()
     cv::Mat upscaledFloat;
     try
     {
-        qDebug() << "Попытка upsample изображения...";
+        qDebug() << "Попытка upsample изображения в потоке" << QThread::currentThreadId();
         model.upsample(bgrMat, upscaledFloat);
         qDebug() << "Upsample успешно завершен";
     }

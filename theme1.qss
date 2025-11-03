@@ -53,6 +53,7 @@ QListWidget {
 QListWidget::item {
     padding: 8px;
     border-bottom: 1px solid #3c3c3c;
+    height: 40px
 }
 QListWidget::item:selected {
     background-color: #0078d7;
