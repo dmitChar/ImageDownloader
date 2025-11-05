@@ -12,8 +12,24 @@ void CompareWindow::setImages(const QImage &orig, const QImage &upscaled)
 {
     origImg = orig;
     upscaledImg = upscaled;
-    sliderPos = width() / 2;
+    updateImageRect();
+    sliderPos = imageRect.center().x();
     update();
+}
+
+void CompareWindow::updateImageRect()
+{
+    if (origImg.isNull()) {
+        imageRect = QRect();
+        return;
+    }
+
+    QSize scaledSize = origImg.size().scaled(size(), Qt::KeepAspectRatio);
+
+    int x = (width() - scaledSize.width()) / 2;
+    int y = (height() - scaledSize.height()) / 2;
+
+    imageRect = QRect(QPoint(x, y), scaledSize);
 }
 
 bool CompareWindow::isOnHandle(int x) const
@@ -27,26 +43,25 @@ void CompareWindow::paintEvent(QPaintEvent *)
         return;
 
     QPainter p(this);
-    p.setRenderHint(QPainter::SmoothPixmapTransform);
 
-    QImage scaledOrig = origImg.scaled(size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-    QImage scaledUpscaled = upscaledImg.scaled(size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    QImage scaledOrig = origImg.scaled(size(), Qt::KeepAspectRatio);
+    QImage scaledUpscaled = upscaledImg.scaled(size(), Qt::KeepAspectRatio);
 
-    int centerY = (scaledOrig.height() - height()) / 2;
-    int offsetX = (scaledOrig.width() - width()) / 2;
+    int xOffset = (width() - scaledOrig.width()) / 2;
+    int yOffset = (height() - scaledOrig.height()) / 2;
 
-    QRect leftRect(offsetX, centerY, sliderPos, height());
-    QRect rightRect(offsetX + sliderPos, centerY, width() - sliderPos, height());
+    p.setClipRect(0, 0, sliderPos, height());
+    p.drawImage(xOffset, yOffset, scaledOrig);
 
-    p.drawImage(QRect(0, 0, sliderPos, height()), scaledOrig, leftRect);
-    p.drawImage(QRect(sliderPos, 0, width() - sliderPos, height()), scaledUpscaled, rightRect);
+    p.setClipRect(sliderPos, 0, width() - sliderPos, height());
+    p.drawImage(xOffset, yOffset, scaledUpscaled);
 
-    // линия-разделитель
+    p.setClipping(false);
+
     QPen linePen(Qt::white, hoverOnHandle || dragging ? 3 : 2);
     p.setPen(linePen);
     p.drawLine(sliderPos, 0, sliderPos, height());
 
-    // ползунок
     QPoint center(sliderPos, height() / 2);
     QPolygon leftArrow({QPoint(center.x() - 10, center.y()),
                         QPoint(center.x() - 3, center.y() - 7),
@@ -55,13 +70,15 @@ void CompareWindow::paintEvent(QPaintEvent *)
                          QPoint(center.x() + 3, center.y() - 7),
                          QPoint(center.x() + 3, center.y() + 7)});
     p.setBrush(Qt::white);
+    p.setPen(Qt::NoPen);
     p.drawPolygon(leftArrow);
     p.drawPolygon(rightArrow);
 }
 
 void CompareWindow::mousePressEvent(QMouseEvent *event)
 {
-    if (event->buttons() & Qt::LeftButton && isOnHandle(event->pos().x())) {
+    if (event->buttons() & Qt::LeftButton && isOnHandle(event->pos().x()))
+    {
         dragging = true;
         setCursor(Qt::ClosedHandCursor);
     }
@@ -69,12 +86,17 @@ void CompareWindow::mousePressEvent(QMouseEvent *event)
 
 void CompareWindow::mouseMoveEvent(QMouseEvent *event)
 {
-    if (dragging) {
-        sliderPos = qBound(0, event->pos().x(), width());
+    int mouseX = event->pos().x();
+
+    if (dragging)
+    {
+        //ограничиваем движение границами изображения
+        sliderPos = qBound(imageRect.left(), mouseX, imageRect.right());
         update();
-    } else {
-        // подсветка при наведении
-        bool onHandle = isOnHandle(event->pos().x());
+    }
+    else
+    {
+        bool onHandle = imageRect.contains(event->pos()) && isOnHandle(mouseX);
         if (onHandle != hoverOnHandle) {
             hoverOnHandle = onHandle;
             setCursor(onHandle ? Qt::OpenHandCursor : Qt::ArrowCursor);
@@ -94,4 +116,15 @@ void CompareWindow::leaveEvent(QEvent *)
     hoverOnHandle = false;
     setCursor(Qt::ArrowCursor);
     update();
+}
+
+void CompareWindow::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    updateImageRect();
+
+    if (!imageRect.isEmpty())
+    {
+        sliderPos = qBound(imageRect.left(), sliderPos, imageRect.right());
+    }
 }

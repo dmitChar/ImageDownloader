@@ -19,6 +19,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     QImage origImg;
@@ -27,6 +28,9 @@ private:
     bool dragging;
     bool hoverOnHandle;
 
+    QRect imageRect;
+
     bool isOnHandle(int x) const;
+    void updateImageRect();
 };
 #endif // COMPAREWINDOW_H
