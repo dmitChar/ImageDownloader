@@ -7,7 +7,6 @@ LIBS += -lopencv_core -lopencv_imgproc -lopencv_imgcodecs -lopencv_dnn_superres 
 
 
 macx {
-    # Для Homebrew на Apple Silicon
     INCLUDEPATH += /opt/homebrew/opt/opencv/include/opencv4
     LIBS += -L/opt/homebrew/opt/opencv/lib \
         -lopencv_core \
@@ -18,18 +17,20 @@ macx {
         -lopencv_video \
         -lopencv_objdetect
 } else {
-    # Для других систем
+
     CONFIG += link_pkgconfig
     PKGCONFIG += opencv4
 }
 
 SOURCES += \
+    comparewindow.cpp \
     downloadmanager.cpp \
     main.cpp \
     mainwindow.cpp \
     scaleimage.cpp
 
 HEADERS += \
+    comparewindow.h \
     downloadmanager.h \
     mainwindow.h \
     scaleimage.h

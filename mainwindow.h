@@ -15,9 +15,11 @@
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QHash>
+#include <QTimer>
 
 #include "downloadmanager.h"
 #include "scaleimage.h"
+#include "comparewindow.h"
 
 class MainWindow : public QMainWindow
 {
@@ -43,6 +45,8 @@ private:
     DownloadManager *dManager;
 
     QHash<QUrl, int> hashUrl2Row;
+    QHash<QUrl, QString> hashUrl2SourceImgPath;
+    QHash<QUrl, QString> hashUrl2ScaledImgPath;
 
     void setUpUI();
     void setStyles();
@@ -55,7 +59,8 @@ private slots:
     void onDownloadBtnClicked();
     void onUpdateProgress(const QUrl &url, int);
     void onDownloadFinished(const QUrl &u, const QByteArray &);
-    void onUpsampleFinished(const QUrl &u, const QImage &img);
+    void onUpscaleFinished(const QUrl &u, const QString &soureImgPath, const QString &scaledImgPath);
+    void onProgressTableDoubleClicked(int row, int col);
 
 
 };

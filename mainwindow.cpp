@@ -18,6 +18,7 @@ void MainWindow::setUpUI()
     urlList = new QListWidget;
     urlList->setAcceptDrops(true);
     urlList->setDragDropMode(QAbstractItemView::DropOnly);
+    urlList->setAcceptDrops(true);
 
     //Список для отображения прогресса скачивания и состояния
     progressTable = new QTableWidget(0, 3, this);
@@ -55,6 +56,8 @@ void MainWindow::setUpUI()
     {
         this->delUrlBtn->setEnabled(isEnabledDelUrlBtn());
     });
+
+    connect(progressTable, &QTableWidget::cellDoubleClicked, this, &MainWindow::onProgressTableDoubleClicked);
 
     connect(downloadBtn, &QPushButton::clicked, this, &MainWindow::onDownloadBtnClicked);
 
@@ -163,9 +166,9 @@ void MainWindow::onDownloadBtnClicked()
 
         // ячейка 0 - текст url
         QTableWidgetItem *urlItem = new QTableWidgetItem(url.toString());
-        urlItem->setData(Qt::UserRole, url); // Хранение url
         urlItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         progressTable->setItem(row, 0, urlItem);
+        urlItem->setData(Qt::UserRole, url);
 
         //ячейка 1 - виджет для прогресс бара
         auto *widget = new QWidget;
@@ -185,10 +188,12 @@ void MainWindow::onDownloadBtnClicked()
         urlItem->setData(Qt::UserRole + 1, QVariant::fromValue(newBar));
 
         //ячейка 2 - виджет для состояния
-        progressTable->setCellWidget(row, 1, widget);
-        progressTable->setCellWidget(row, 2, new QLabel("Скачивание изображения..."));
+        QLabel *newLabel = new QLabel("Скачивание изображения");
+        newLabel->setAlignment(Qt::AlignCenter);
+        progressTable->setCellWidget(row, 2, newLabel);
         hashUrl2Row[url] = row;
 
+        progressTable->setCellWidget(row, 1, widget);
         delete item;
         //запуск загрузки
         dManager->addImgToDownload(url);
@@ -196,7 +201,7 @@ void MainWindow::onDownloadBtnClicked()
     downloadBtn->setEnabled(true);
 }
 
-void MainWindow::onUpsampleFinished(const QUrl &url, const QImage &img)
+void MainWindow::onUpscaleFinished(const QUrl &url, const QString &soureImgPath, const QString &scaledImgPath)
 {
     if (!hashUrl2Row.contains(url))
     {
@@ -204,8 +209,34 @@ void MainWindow::onUpsampleFinished(const QUrl &url, const QImage &img)
         return;
     }
     int row = hashUrl2Row[url];
-    progressTable->setCellWidget(row, 2, new QLabel("Изображение улучшено!"));
+    QLabel *label = qobject_cast<QLabel*>(progressTable->cellWidget(row, 2));
+    label->setText("Изображение улучшено");
 
+    this->hashUrl2SourceImgPath[url] = soureImgPath;
+    this->hashUrl2ScaledImgPath[url] = scaledImgPath;
+}
+
+void MainWindow::onProgressTableDoubleClicked(int row, int col)
+{
+    Q_UNUSED(col);
+
+    QTableWidgetItem *item = progressTable->item(row, 0);
+    if (!item) return;
+
+    const QUrl url = item->data(Qt::UserRole).toUrl();
+
+    if ( !hashUrl2SourceImgPath.contains(url) || !hashUrl2ScaledImgPath.contains(url))
+    {
+        QMessageBox::information(this, "Информация", "Изображения ещё не готовы.");
+        return;
+    }
+
+    QString sourcePath = hashUrl2SourceImgPath[url];
+    QString scaledPath = hashUrl2ScaledImgPath[url];
+
+    CompareWindow *compare = new CompareWindow;
+    compare->setImages(QImage(sourcePath), QImage(scaledPath));
+    compare->show();
 }
 
 void MainWindow::onUpdateProgress(const QUrl &url, int percentage)
@@ -232,14 +263,33 @@ void MainWindow::onDownloadFinished(const QUrl &url, const QByteArray &data)
         qWarning() << "Не найден url в таблице:" << url;
         return;
     }
-    int row = hashUrl2Row[url];
-    progressTable->setCellWidget(row, 2, new QLabel("Улучшение изображения..."));
-    auto *scale = new ScaleImage(url, data);
 
+    int row = hashUrl2Row[url];
+    QLabel *label = qobject_cast<QLabel*>(progressTable->cellWidget(row, 2));
+    label->setText("Улучшение изображения");
+
+    //таймер для анимации точек
+    QTimer *timer = new QTimer(this);
+    // int dotCount = 0;
+
+    // connect(timer, &QTimer::timeout, this, [this, label, &dotCount]() mutable
+    // {
+    //     dotCount = (dotCount + 1) % 5;
+    //     QString baseText = "Улучшение изображения";
+    //     label->setText(baseText + QString(".").repeated(dotCount));
+    // });
+
+    // timer->start(300); // каждый тик добавляем точку
+
+    // запускаем апскейл
+    auto *scale = new ScaleImage(url, data);
     QThreadPool::globalInstance()->start(scale);
 
-    connect(scale, &ScaleImage::finished, this, &MainWindow::onUpsampleFinished);
+
+    connect(scale, &ScaleImage::upscaleFinished, this, &MainWindow::onUpscaleFinished);
+
 }
+
 
 void MainWindow::dropEvent(QDropEvent *event)
 {

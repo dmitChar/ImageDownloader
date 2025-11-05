@@ -27,14 +27,17 @@ public:
     void run() override;
 
 signals:
-    void finished(const QUrl &url, const QImage &image);
+    void upscaleFinished(const QUrl &url, const QString &soureImgPath, const QString &scaledImgPath);
+    void imageSaved(const QUrl &url, const QString &path, const QString &path2);
+    void scaleError(const QUrl &url, const QString &error);
 
 private:
     QUrl url;
     QByteArray data;
     const QString modelPath = ":/models/EDSR_x4.pb";
 
-    static void saveImage(QString name, const QImage &img, ImgType type);
+    bool saveImage(const QString &path, const QImage &img);
+    QString getImgPath(QString name, ImgType type);
 
 };
 

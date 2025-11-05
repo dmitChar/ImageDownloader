@@ -11,23 +11,10 @@ ScaleImage::ScaleImage(const QUrl &url, const QByteArray &d, QObject *parent)
     data(d)
 {
     setAutoDelete(true);
-
 }
 
-QString HashUrl(const QUrl &url)
+QString ScaleImage::getImgPath(QString name, ImgType type)
 {
-    QByteArray hash = QCryptographicHash::hash(url.toString().toUtf8(), QCryptographicHash::Sha1);
-    return QString(hash.toHex());
-}
-
-void ScaleImage::saveImage(QString name, const QImage &img, ImgType type)
-{
-    if (name.isEmpty() || img.isNull())
-    {
-        qDebug() << "Ошибка: Пустое имя или изображение";
-        return;
-    }
-
     name = QString::number(qHash(name)) + ".jpg";
     QString basePath = QCoreApplication::applicationDirPath() + "/../Output";
 
@@ -52,15 +39,31 @@ void ScaleImage::saveImage(QString name, const QImage &img, ImgType type)
     if (!dir.exists(subDir))
     {
         dir.mkpath(subDir);
-        QFile::setPermissions(subDir, QFile::ReadOwner | QFile::ReadUser | QFile::ReadGroup);
     }
 
     QString fileName = prefix + name;
-    QString fullPath = dir.filePath(subDir + "/" + fileName);
+    return (dir.filePath(subDir + QDir::separator() + fileName));
+}
 
-    if (img.save(fullPath))
-        qDebug() << "Изображение успешно сохранено" << fullPath;
-    else qDebug() << "Ошибка сохранения изображения" << fullPath;
+bool ScaleImage::saveImage(const QString &path, const QImage &img)
+{
+    if (path.isEmpty() || img.isNull())
+    {
+        qDebug() << "Ошибка: Пустой путь или изображение";
+        emit scaleError(url, "Ошибка: Пустой путь или изображение");
+        return false;
+    }
+
+    if (img.save(path))
+    {
+        qDebug() << "Изображение успешно сохранено" << path;
+        return true;
+    }
+
+    qDebug() << "Ошибка сохранения изображения" << path;
+    emit scaleError(url, "Ошибка сохранения изображения");
+    return false;
+
 }
 
 void ScaleImage::run()
@@ -103,6 +106,7 @@ void ScaleImage::run()
     catch (const cv::Exception &e)
     {
         qDebug() << "Ошибка загрузки модели:" << e.what();
+        emit scaleError(url, "Ошибка загрузки модели:");
         return;
     }
 
@@ -110,13 +114,14 @@ void ScaleImage::run()
     cv::Mat upscaledFloat;
     try
     {
-        qDebug() << "Попытка upsample изображения в потоке" << QThread::currentThreadId();
+        qDebug() << "Попытка upsample изображения в потоке" <<QThread::currentThreadId();
         model.upsample(bgrMat, upscaledFloat);
         qDebug() << "Upsample успешно завершен";
     }
     catch (const cv::Exception &e)
     {
         qDebug() << "Ошибка апскейла:" << e.what();
+        emit scaleError(url, "Ошибка апскейла");
         return;
     }
 
@@ -132,12 +137,16 @@ void ScaleImage::run()
     if (scaledImg.isNull())
     {
         qDebug() << "Ошибка создания scaled QImage";
+        emit scaleError(url, "Ошибка создания scaled QImage");
         return;
     }
     scaledImg = scaledImg.copy();
 
-    saveImage(url.toString(), originalImg, ImgType::Source);
-    saveImage(url.toString(), scaledImg, ImgType::Scaled);
+    QString path1 = getImgPath(url.toString(), ImgType::Source);
+    QString path2 = getImgPath(url.toString(), ImgType::Scaled);
 
-    emit finished(url, scaledImg);
+    if (saveImage(path1, originalImg) && saveImage(path2, scaledImg))
+    {
+        emit upscaleFinished(url, path1, path2);
+    }
 }
