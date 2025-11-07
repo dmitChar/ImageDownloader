@@ -63,12 +63,16 @@ void MainWindow::setUpUI()
 
     connect(dManager, &DownloadManager::downloadProgress, this, &MainWindow::onUpdateProgress);
     connect(dManager, &DownloadManager::downloadEnd, this, &MainWindow::onDownloadFinished);
+
+    //Обработка ошибок
     connect(dManager, &DownloadManager::downloadError, this, [this] (const QUrl &url, const QString &error)
     {
         qDebug() << "Ошибка при скачивании изображения" << error << "по ссылке" << url;
         int row = hashUrl2Row[url];
-        progressTable->setCellWidget(row, 2, new QLabel("Ошибка загрузки:" + error));
+        QLabel *label = qobject_cast<QLabel*>(progressTable->cellWidget(row, 2));
+        label->setText("Ошибка загрузки: " + error);
     });
+
 }
 
 void MainWindow::setStyles()
@@ -268,28 +272,21 @@ void MainWindow::onDownloadFinished(const QUrl &url, const QByteArray &data)
     QLabel *label = qobject_cast<QLabel*>(progressTable->cellWidget(row, 2));
     label->setText("Улучшение изображения");
 
-    //таймер для анимации точек
-    QTimer *timer = new QTimer(this);
-    // int dotCount = 0;
-
-    // connect(timer, &QTimer::timeout, this, [this, label, &dotCount]() mutable
-    // {
-    //     dotCount = (dotCount + 1) % 5;
-    //     QString baseText = "Улучшение изображения";
-    //     label->setText(baseText + QString(".").repeated(dotCount));
-    // });
-
-    // timer->start(300); // каждый тик добавляем точку
-
     // запускаем апскейл
     auto *scale = new ScaleImage(url, data);
     QThreadPool::globalInstance()->start(scale);
 
 
     connect(scale, &ScaleImage::upscaleFinished, this, &MainWindow::onUpscaleFinished);
+    connect(scale, &ScaleImage::scaleError, this, [this] (const QUrl &url, const QString &error)
+    {
+        int row = this->hashUrl2Row[url];
+        QLabel *label = qobject_cast<QLabel*>(this->progressTable->cellWidget(row, 2));
+        label->setText("Ошибка улучшения изображения: " + error);
+
+    });
 
 }
-
 
 void MainWindow::dropEvent(QDropEvent *event)
 {
